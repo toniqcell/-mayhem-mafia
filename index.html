@@ -9,4 +9,409 @@
 <div class="section">Explore the city <small>Pick a destination</small></div><div class="grid"><button class="place" onclick="panel('missions')"><span class="emoji">🎯</span><strong>Challenge Arena</strong><small>Missions & trivia</small></button><button class="place" onclick="panel('shop')"><span class="emoji">🛍️</span><strong>Shopping District</strong><small>Buy outfits</small></button><button class="place" onclick="panel('lounge')"><span class="emoji">🥂</span><strong>Members' Lounge</strong><small>Daily check-in</small></button><button class="place" onclick="panel('party')"><span class="emoji">🎉</span><strong>Party Zone</strong><small>Quick challenge</small></button><button class="place" onclick="panel('mansion')"><span class="emoji">🏰</span><strong>Mafia Mansion</strong><small>Your status</small></button><button class="place" onclick="panel('hall')"><span class="emoji">🏆</span><strong>Hall of Fame</strong><small>Achievements</small></button></div><section id="panel" class="card hidden" style="margin-top:16px"></section><div class="section">Mayhem leaderboard <small>Local player only</small></div><section class="card" id="leaderboard"></section><div class="notice">👑 Weekly Crown: earn reputation by completing challenges. This demo only shows your score on this device; shared live rankings need an online database.</div></section><div class="footer">MAYHEM MAFIA • A community game concept</div></main><div id="toast" class="toast"></div>
 <script>
 const KEY='mayhemMafiaV1';let s=null;const ranks=[['Newbie',0],['Street Rookie',30],['Certified Hustler',80],['Mayhem Elite',160],['Mafia Boss',300]];const missions=[{id:'trivia',title:'City Smarts',desc:'Which Nigerian city is known as the Centre of Excellence?',answer:'Lagos',reward:15,xp:10},{id:'mystery',title:'The Missing Crown',desc:'The crown is missing. Where should you search first?',answer:'Mafia Mansion',reward:20,xp:15},{id:'code',title:'Secret Code',desc:'What comes next: 2, 4, 6, 8, __?',answer:'10',reward:15,xp:10},{id:'style',title:'Style Check',desc:'Show confidence and choose your signature look.',answer:'Confidence',reward:10,xp:8}];const items=[{id:'shades',name:'Boss Shades',emoji:'🕶️',price:20},{id:'crown',name:'Golden Crown',emoji:'👑',price:35},{id:'chain',name:'Gold Chain',emoji:'⛓️',price:25},{id:'wings',name:'Mayhem Wings',emoji:'🦋',price:30},{id:'flame',name:'Fire Fit',emoji:'🔥',price:40}];function save(){localStorage.setItem(KEY,JSON.stringify(s));render()}function createPlayer(){let n=document.getElementById('name').value.trim();if(!n)return toast('Enter your player name first!');s={name:n,avatar:document.getElementById('avatarPick').value,role:document.getElementById('rolePick').value,cash:50,xp:0,done:[],owned:[],checkin:'',party:false};save();toast('Welcome to Mayhem City, '+n+'!')}function load(){try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){s=null}if(s&&s.name)render();else{document.getElementById('setup').classList.remove('hidden');document.getElementById('game').classList.add('hidden')}}function rank(){let r='Newbie';ranks.forEach(x=>{if(s.xp>=x[1])r=x[0]});return r}function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function render(){document.getElementById('setup').classList.add('hidden');document.getElementById('game').classList.remove('hidden');document.getElementById('cash').textContent=s.cash+' MC';document.getElementById('xp').textContent=s.xp+' XP';document.getElementById('rank').textContent=rank();document.getElementById('avatar').textContent=s.avatar;document.getElementById('playerName').textContent=s.name;document.getElementById('playerRole').textContent=s.role+' • Mayhem City';document.getElementById('motto').textContent=s.owned.map(id=>items.find(i=>i.id===id)?.emoji||'').join(' ')+' Making moves, quietly.';document.getElementById('leaderboard').innerHTML='<div class="row"><span>👑 '+esc(s.name)+' <small>('+rank()+')</small></span><strong>'+s.xp+' XP</strong></div><p class="muted">Local demo leaderboard. Other members will appear when online multiplayer is built.</p>'}function panel(which){let p=document.getElementById('panel');p.classList.remove('hidden');if(which==='missions'){p.innerHTML='<div class="section">Challenge Arena 🎯</div><div class="list">'+missions.map(m=>'<div class="row"><div><strong>'+m.title+'</strong><p>'+m.desc+'</p><p class="reward">+'+m.reward+' MC • +'+m.xp+' XP</p></div><button '+(s.done.includes(m.id)?'disabled':'')+' onclick="play(\''+m.id+'\')">'+(s.done.includes(m.id)?'Done ✓':'Play')+'</button></div>').join('')+'</div>'}else if(which==='shop'){p.innerHTML='<div class="section">Shopping District 🛍️ <small>'+s.cash+' MC</small></div><div class="list">'+items.map(i=>'<div class="row"><span style="font-size:25px">'+i.emoji+'</span><div style="flex:1"><strong>'+i.name+'</strong><p>'+i.price+' MC</p></div><button '+(s.owned.includes(i.id)?'disabled':'')+' onclick="buy(\''+i.id+'\')">'+(s.owned.includes(i.id)?'Owned ✓':'Buy')+'</button></div>').join('')+'</div>'}else if(which==='lounge'){let done=s.checkin===new Date().toDateString();p.innerHTML='<div class="section">Members’ Lounge 🥂</div><p>Check in once a day for 5 MC and 3 XP.</p><button '+(done?'disabled':'')+' onclick="checkin()">'+(done?'Already checked in ✓':'Daily check-in')+'</button>'}else if(which==='party'){p.innerHTML='<div class="section">Party Zone 🎉</div><p>Which one is Nigeria’s currency?</p><div class="grid"><button onclick="party(\'Naira\')">Naira</button><button class="secondary" onclick="party(\'Dinar\')">Dinar</button><button class="secondary" onclick="party(\'Euro\')">Euro</button></div><p class="muted">One successful attempt per save.</p>'}else if(which==='mansion'){p.innerHTML='<div class="section">Mafia Mansion 🏰</div><p><strong>'+esc(s.name)+'</strong>, you are ranked <strong>'+rank()+'</strong>.</p><p>Reputation: '+s.xp+' XP • Cash: '+s.cash+' MC • Items: '+s.owned.length+'</p><p>Your mission is to rise through the ranks and claim the Mayhem Crown.</p><button onclick="panel(\'missions\')">Go to missions</button>'}else{let a=[['First Steps','Create your character',true],['Mission Starter','Complete a mission',s.done.length>0],['Fashion Forward','Buy your first item',s.owned.length>0],['Rising Star','Reach 80 XP',s.xp>=80],['Mafia Boss','Reach 300 XP',s.xp>=300]];p.innerHTML='<div class="section">Hall of Fame 🏆</div><div class="list">'+a.map(x=>'<div class="row"><span>'+(x[2]?'🏆':'🔒')+' '+x[0]+'<p>'+x[1]+'</p></span><strong>'+(x[2]?'Unlocked':'Locked')+'</strong></div>').join('')+'</div>'}p.scrollIntoView({behavior:'smooth',block:'start'})}function play(id){let m=missions.find(x=>x.id===id);if(s.done.includes(id))return;let answer=prompt(m.desc+'\n\nType your answer:');if(answer===null)return;if(answer.trim().toLowerCase()===m.answer.toLowerCase()){s.done.push(id);s.cash+=m.reward;s.xp+=m.xp;save();panel('missions');toast('Mission complete! +'+m.reward+' MC and +'+m.xp+' XP')}else toast('Not quite! Try again.')}function buy(id){let i=items.find(x=>x.id===id);if(s.owned.includes(id))return;if(s.cash<i.price)return toast('Not enough Mayhem Cash yet!');s.cash-=i.price;s.owned.push(id);save();panel('shop');toast(i.name+' purchased!')}function checkin(){let d=new Date().toDateString();if(s.checkin===d)return;s.checkin=d;s.cash+=5;s.xp+=3;save();panel('lounge');toast('Daily reward: +5 MC and +3 XP')}function party(a){if(s.party)return toast('You already completed this challenge.');if(a==='Naira'){s.party=true;s.cash+=12;s.xp+=8;save();panel('party');toast('Correct! +12 MC and +8 XP')}else toast('Not quite! Try again.')}function resetGame(){if(confirm('Reset all progress saved on this device?')){localStorage.removeItem(KEY);s=null;document.getElementById('panel').classList.add('hidden');load();toast('Progress reset.')}}function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(window.tt);window.tt=setTimeout(()=>t.style.display='none',2500)}load();
-</script></body></html>
+</script> <!-- MAYHEM MAFIA: PROFILE & WEEKLY AWARDS -->
+<style>
+#mmx-launcher {
+  position:fixed;
+  right:15px;
+  bottom:18px;
+  z-index:9998;
+  background:linear-gradient(135deg,#8b2be2,#ed4b9b);
+  color:white;
+  border:1px solid #f5c96a;
+  border-radius:30px;
+  padding:13px 18px;
+  font-weight:bold;
+  box-shadow:0 4px 20px #0008;
+}
+#mmx-overlay {
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:#100817;
+  color:#fff;
+  overflow-y:auto;
+  font-family:Arial,sans-serif;
+  padding:18px;
+  box-sizing:border-box;
+}
+#mmx-overlay * {box-sizing:border-box}
+#mmx-overlay .mmx-card {
+  background:#21142e;
+  border:1px solid #57366c;
+  border-radius:15px;
+  padding:15px;
+  margin:12px 0;
+}
+#mmx-overlay h2,#mmx-overlay h3 {color:#f6c969}
+#mmx-overlay button {
+  background:#9d42d5;
+  color:white;
+  border:0;
+  border-radius:9px;
+  padding:10px 13px;
+  margin:4px 2px;
+  font-weight:bold;
+}
+#mmx-overlay input,#mmx-overlay select,
+#mmx-overlay textarea {
+  width:100%;
+  background:#130d1c;
+  color:white;
+  border:1px solid #70468c;
+  border-radius:8px;
+  padding:11px;
+  margin:6px 0 10px;
+}
+#mmx-overlay .mmx-tab {background:#382448}
+#mmx-overlay .mmx-active {background:#d044a0}
+#mmx-overlay .mmx-muted {color:#c9b9d5;font-size:13px}
+#mmx-overlay .mmx-result {
+  padding:9px;
+  background:#301d40;
+  border-radius:8px;
+  margin:6px 0;
+}
+</style>
+
+<button id="mmx-launcher" onclick="mmxOpen()">
+  👑 MY PROFILE & AWARDS
+</button>
+
+<div id="mmx-overlay">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <h2>👑 MAYHEM MAFIA</h2>
+    <button onclick="mmxClose()">✖ CLOSE</button>
+  </div>
+
+  <p class="mmx-muted">WHO RUNS THE CITY?</p>
+
+  <div>
+    <button class="mmx-tab mmx-active" id="mmx-tab-profile"
+      onclick="mmxShow('profile')">👤 Profile</button>
+    <button class="mmx-tab" id="mmx-tab-vote"
+      onclick="mmxShow('vote')">🗳️ Weekly Voting</button>
+    <button class="mmx-tab" id="mmx-tab-hall"
+      onclick="mmxShow('hall')">🏆 Hall of Fame</button>
+  </div>
+
+  <section id="mmx-profile">
+    <div class="mmx-card" style="text-align:center">
+      <div style="font-size:60px">👑</div>
+      <h2 id="mmx-display-name">ToniQ</h2>
+      <p style="color:#f6c969;font-size:19px">The Velvet Queen</p>
+      <p>👑 Underworld Royalty</p>
+      <p>🏰 Gang: Velvet Empire</p>
+      <p>🟢 Online</p>
+    </div>
+
+    <div class="mmx-card">
+      <h3>💎 Player Statistics</h3>
+      <p>⭐ Level: 24</p>
+      <p>💰 Cash: ₦2,450,000</p>
+      <p>🔥 Reputation: 8,420</p>
+      <p>🏆 Wins: 37</p>
+      <p>💔 Losses: 12</p>
+      <p>🏰 Owned properties: 4</p>
+      <p>👑 Weekly title: This Week's Wisest × 2</p>
+    </div>
+
+    <div class="mmx-card">
+      <h3>✍️ Customise Your Profile</h3>
+      <label>Display nickname</label>
+      <input id="mmx-nickname" maxlength="30" placeholder="Enter nickname">
+      <label>About me</label>
+      <textarea id="mmx-bio" maxlength="180"
+        placeholder="Write a short bio..."></textarea>
+      <label>Avatar emoji</label>
+      <select id="mmx-avatar">
+        <option>👑</option>
+        <option>😈</option>
+        <option>🖤</option>
+        <option>💋</option>
+        <option>🦋</option>
+        <option>🐺</option>
+        <option>🔥</option>
+        <option>💎</option>
+      </select>
+      <button onclick="mmxSaveProfile()">SAVE PROFILE</button>
+      <p id="mmx-profile-message" class="mmx-muted"></p>
+    </div>
+
+    <div class="mmx-card">
+      <h3>👥 Add Group Members</h3>
+      <p class="mmx-muted">
+        Add the names of your group members to the local voting demo.
+      </p>
+      <input id="mmx-new-member" maxlength="30"
+        placeholder="Enter member's username">
+      <button onclick="mmxAddMember()">ADD MEMBER</button>
+      <div id="mmx-member-list"></div>
+    </div>
+  </section>
+
+  <section id="mmx-vote" style="display:none">
+    <div class="mmx-card">
+      <h3>🗳️ MAYHEM WEEKLY AWARDS</h3>
+      <p>Seven titles. One group. Who deserves the crown?</p>
+      <p class="mmx-muted">
+        Demo schedule: Monday–Friday voting.
+        One selection per category per browser each week.
+      </p>
+      <p class="mmx-muted">
+        Choose the member you want to vote for in each category.
+      </p>
+      <div id="mmx-voting-form"></div>
+      <button onclick="mmxSubmitVotes()">SUBMIT MY VOTES 🗳️</button>
+      <p id="mmx-vote-message" class="mmx-muted"></p>
+    </div>
+  </section>
+
+  <section id="mmx-hall" style="display:none">
+    <div class="mmx-card">
+      <h3>🏆 WEEKLY HALL OF FAME</h3>
+      <p class="mmx-muted">
+        The winners shown here are calculated from votes stored in this
+        browser only. This demo does not collect votes from other players.
+      </p>
+      <div id="mmx-hall-content"></div>
+    </div>
+  </section>
+
+  <p class="mmx-muted" style="text-align:center">
+    MAYHEM MAFIA • WHO RUNS THE CITY? 👑
+  </p>
+</div>
+
+<script>
+(function () {
+  const prefix = 'mayhemMafiaExtraV1';
+  const roles = [
+    '🧹 Group Errand Boy/Girl',
+    '👑 Group Boss',
+    '🌟 Group Celeb',
+    '🕊️ Peacemaker',
+    '😂 Comedian',
+    '👻 Ghost',
+    '🥲 Victim'
+  ];
+
+  function read(key, fallback) {
+    try {
+      const value = localStorage.getItem(prefix + key);
+      return value ? JSON.parse(value) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function save(key, value) {
+    try {
+      localStorage.setItem(prefix + key, JSON.stringify(value));
+      return true;
+    } catch (e) {
+      alert('Unable to save. Please check your browser storage.');
+      return false;
+    }
+  }
+
+  let members = read('Members', ['ToniQ']);
+  let profile = read('Profile', {
+    nickname: 'ToniQ',
+    bio: '',
+    avatar: '👑'
+  });
+  let votes = read('Votes', {});
+  let history = read('History', {});
+
+  function weekKey() {
+    const now = new Date();
+    const day = now.getDay();
+    now.setDate(now.getDate() - ((day + 6) % 7));
+    return now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0');
+  }
+
+  window.mmxOpen = function () {
+    document.getElementById('mmx-overlay').style.display = 'block';
+    mmxShow('profile');
+    renderMembers();
+    renderVotes();
+    renderHall();
+  };
+
+  window.mmxClose = function () {
+    document.getElementById('mmx-overlay').style.display = 'none';
+  };
+
+  window.mmxShow = function (tab) {
+    ['profile', 'vote', 'hall'].forEach(function (name) {
+      document.getElementById('mmx-' + name).style.display =
+        name === tab ? 'block' : 'none';
+      document.getElementById('mmx-tab-' + name)
+        .classList.toggle('mmx-active', name === tab);
+    });
+    if (tab === 'vote') renderVotes();
+    if (tab === 'hall') renderHall();
+  };
+
+  window.mmxSaveProfile = function () {
+    profile.nickname =
+      document.getElementById('mmx-nickname').value.trim() || 'ToniQ';
+    profile.bio = document.getElementById('mmx-bio').value.trim();
+    profile.avatar = document.getElementById('mmx-avatar').value;
+
+    if (save('Profile', profile)) {
+      document.getElementById('mmx-display-name').textContent =
+        profile.avatar + ' ' + profile.nickname;
+      document.getElementById('mmx-profile-message').textContent =
+        'Profile saved on this device!';
+    }
+  };
+
+  window.mmxAddMember = function () {
+    const input = document.getElementById('mmx-new-member');
+    const name = input.value.trim();
+
+    if (!name) return alert('Enter a username first.');
+    if (members.some(function (m) {
+      return m.toLowerCase() === name.toLowerCase();
+    })) return alert('That member is already on the list.');
+
+    members.push(name);
+    if (save('Members', members)) {
+      input.value = '';
+      renderMembers();
+      renderVotes();
+      alert(name + ' was added to the local demo list.');
+    }
+  };
+
+  function renderMembers() {
+    const list = document.getElementById('mmx-member-list');
+    list.innerHTML = '';
+    members.forEach(function (name) {
+      const row = document.createElement('div');
+      row.className = 'mmx-result';
+      row.textContent = name;
+      list.appendChild(row);
+    });
+    document.getElementById('mmx-nickname').value = profile.nickname;
+    document.getElementById('mmx-bio').value = profile.bio;
+    document.getElementById('mmx-avatar').value = profile.avatar;
+    document.getElementById('mmx-display-name').textContent =
+      profile.avatar + ' ' + profile.nickname;
+  }
+
+  function renderVotes() {
+    const form = document.getElementById('mmx-voting-form');
+    form.innerHTML = '';
+
+    roles.forEach(function (role, index) {
+      const label = document.createElement('label');
+      label.textContent = (index + 1) + '. ' + role;
+      form.appendChild(label);
+
+      const select = document.createElement('select');
+      select.id = 'mmx-choice-' + index;
+
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = 'Choose a member...';
+      select.appendChild(empty);
+
+      members.forEach(function (member) {
+        const option = document.createElement('option');
+        option.value = member;
+        option.textContent = member;
+        select.appendChild(option);
+      });
+
+      form.appendChild(select);
+    });
+
+    const current = votes[weekKey()] || {};
+    roles.forEach(function (role, index) {
+      const select = document.getElementById('mmx-choice-' + index);
+      if (current[index]) {
+        select.value = current[index];
+        select.disabled = true;
+      }
+    });
+
+    document.getElementById('mmx-vote-message').textContent =
+      Object.keys(current).length === roles.length
+        ? 'You have submitted all seven votes for this week on this device.'
+        : 'Select a member for each category, then submit.';
+  }
+
+  window.mmxSubmitVotes = function () {
+    const key = weekKey();
+    const existing = votes[key] || {};
+
+    if (Object.keys(existing).length > 0) {
+      return alert('Votes have already been submitted for this week on this device.');
+    }
+
+    const choices = {};
+    for (let i = 0; i < roles.length; i++) {
+      const value = document.getElementById('mmx-choice-' + i).value;
+      if (!value) return alert('Please select a member for all seven categories.');
+      choices[i] = value;
+    }
+
+    votes[key] = choices;
+    if (save('Votes', votes)) {
+      document.getElementById('mmx-vote-message').textContent =
+        'Your demo votes have been saved on this device.';
+      renderVotes();
+      renderHall();
+      alert('Your seven demo votes have been saved!');
+    }
+  };
+
+  function renderHall() {
+    const container = document.getElementById('mmx-hall-content');
+    container.innerHTML = '';
+
+    const key = weekKey();
+    const totals = roles.map(function () { return {}; });
+
+    Object.keys(votes).forEach(function (week) {
+      const weekVotes = votes[week] || {};
+      Object.keys(weekVotes).forEach(function (roleIndex) {
+        const member = weekVotes[roleIndex];
+        if (!totals[Number(roleIndex)]) return;
+        totals[Number(roleIndex)][member] =
+          (totals[Number(roleIndex)][member] || 0) + 1;
+      });
+    });
+
+    roles.forEach(function (role, index) {
+      const box = document.createElement('div');
+      box.className = 'mmx-result';
+      const title = document.createElement('strong');
+      title.textContent = role;
+      box.appendChild(title);
+
+      const currentVotes = totals[index];
+      const names = Object.keys(currentVotes).sort(function (a, b) {
+        return currentVotes[b] - currentVotes[a];
+      });
+
+      const p = document.createElement('p');
+      if (names.length) {
+        p.textContent = 'Local demo leader: ' + names[0] +
+          ' (' + currentVotes[names[0]] + ' recorded vote(s))';
+      } else {
+        p.textContent = 'No votes recorded yet.';
+      }
+      box.appendChild(p);
+      container.appendChild(box);
+    });
+  }
+})();
+</script>
+<!-- END MAYHEM MAFIA PROFILE & WEEKLY AWARDS --></body></html>
