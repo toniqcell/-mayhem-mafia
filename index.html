@@ -414,4 +414,525 @@ const KEY='mayhemMafiaV1';let s=null;const ranks=[['Newbie',0],['Street Rookie',
   }
 })();
 </script>
-<!-- END MAYHEM MAFIA PROFILE & WEEKLY AWARDS --></body></html>
+<!-- END MAYHEM MAFIA PROFILE & WEEKLY AWARDS --><!-- MAYHEM MAFIA: ACCOUNT SYSTEM -->
+<section id="mm-account-system">
+  <style>
+    #mm-account-system {
+      max-width: 650px;
+      margin: 24px auto;
+      padding: 20px;
+      color: #f8fafc;
+      background: #17131f;
+      border: 1px solid #62447b;
+      border-radius: 18px;
+      font-family: Arial, sans-serif;
+    }
+
+    #mm-account-system * { box-sizing: border-box; }
+
+    #mm-account-system h2,
+    #mm-account-system h3 { color: #e5b9ff; }
+
+    #mm-account-system input,
+    #mm-account-system textarea,
+    #mm-account-system button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 9px;
+      font: inherit;
+    }
+
+    #mm-account-system input,
+    #mm-account-system textarea {
+      color: #fff;
+      background: #292333;
+      border: 1px solid #69577a;
+    }
+
+    #mm-account-system button {
+      color: #160e20;
+      background: #d9a8ff;
+      border: 0;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #mm-account-system button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    #mm-account-system .mm-secondary {
+      color: #fff;
+      background: #463650;
+    }
+
+    #mm-account-system .mm-card {
+      margin: 12px 0;
+      padding: 14px;
+      border: 1px solid #554460;
+      border-radius: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    #mm-account-system .mm-muted {
+      color: #c8bbd1;
+      font-size: 14px;
+    }
+
+    #mm-account-system [hidden] { display: none !important; }
+
+    #mm-account-system #mm-message {
+      overflow-wrap: anywhere;
+      line-height: 1.5;
+    }
+  </style>
+
+  <h2>👑 Mayhem Mafia Accounts</h2>
+  <p class="mm-muted">
+    Create your identity in the underworld. Your username and mafia nickname
+    must be unique.
+  </p>
+
+  <div id="mm-auth">
+    <form id="mm-register-form">
+      <h3>Create Your Account</h3>
+
+      <input id="mm-reg-username"
+        placeholder="Choose a username"
+        minlength="3" maxlength="24"
+        pattern="[A-Za-z0-9_]+"
+        title="Use 3–24 letters, numbers or underscores."
+        autocomplete="username" required>
+
+      <input id="mm-reg-nickname"
+        placeholder="Choose your mafia nickname"
+        minlength="3" maxlength="30"
+        required>
+
+      <input id="mm-reg-email"
+        type="email" placeholder="Email address"
+        autocomplete="email" required>
+
+      <input id="mm-reg-password"
+        type="password" placeholder="Password (at least 8 characters)"
+        minlength="8" autocomplete="new-password" required>
+
+      <button type="submit">Create Account</button>
+    </form>
+
+    <hr style="border-color:#554460;margin:24px 0">
+
+    <form id="mm-login-form">
+      <h3>Welcome Back</h3>
+
+      <input id="mm-login-email"
+        type="email" placeholder="Email address"
+        autocomplete="email" required>
+
+      <input id="mm-login-password"
+        type="password" placeholder="Password"
+        autocomplete="current-password" required>
+
+      <button type="submit">Log In</button>
+    </form>
+  </div>
+
+  <div id="mm-member-area" hidden>
+    <h3>Your Mafia Profile</h3>
+    <div id="mm-my-profile" class="mm-card"></div>
+
+    <form id="mm-profile-form">
+      <input id="mm-edit-nickname"
+        placeholder="Your mafia nickname"
+        minlength="3" maxlength="30" required>
+
+      <input id="mm-edit-avatar"
+        placeholder="Avatar emoji, e.g. 👑"
+        maxlength="12">
+
+      <input id="mm-edit-gang"
+        placeholder="Gang affiliation"
+        maxlength="50">
+
+      <textarea id="mm-edit-bio"
+        placeholder="Tell the city about yourself"
+        maxlength="250"></textarea>
+
+      <button type="submit">Save Profile</button>
+    </form>
+
+    <h3>🏙️ Registered Members</h3>
+    <button type="button" id="mm-refresh-members" class="mm-secondary">
+      Refresh Members
+    </button>
+    <div id="mm-members"></div>
+
+    <button type="button" id="mm-logout" class="mm-secondary">
+      Log Out
+    </button>
+  </div>
+
+  <p id="mm-message" role="status" aria-live="polite"></p>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+(function () {
+  const root = document.getElementById("mm-account-system");
+  if (!root || root.dataset.initialized) return;
+  root.dataset.initialized = "true";
+
+  const PROJECT_URL = "https://sxssaxhmnygtjwchbzot.supabase.co";
+  const PUBLISHABLE_KEY = "sb_publishable_ySe329mnC3wqHyUWyRvawQ_3ySc1gWP";
+
+  const message = document.getElementById("mm-message");
+  const authArea = document.getElementById("mm-auth");
+  const memberArea = document.getElementById("mm-member-area");
+
+  let client;
+  let currentUser = null;
+  let busy = false;
+
+  function say(text) {
+    message.textContent = text;
+  }
+
+  function clean(value) {
+    return String(value || "").trim();
+  }
+
+  function validNickname(value) {
+    return value.length >= 3 && value.length <= 30;
+  }
+
+  function setBusy(value) {
+    busy = value;
+    root.querySelectorAll("button").forEach(button => {
+      button.disabled = value;
+    });
+  }
+
+  function showLoggedOut() {
+    currentUser = null;
+    authArea.hidden = false;
+    memberArea.hidden = true;
+  }
+
+  function showLoggedIn(user) {
+    currentUser = user;
+    authArea.hidden = true;
+    memberArea.hidden = false;
+  }
+
+  function displayProfile(profile) {
+    const box = document.getElementById("mm-my-profile");
+    box.replaceChildren();
+
+    const title = document.createElement("h3");
+    title.textContent = (profile.avatar || "👑") + " " +
+      (profile.mafia_nickname || "New Mafia Member");
+
+    const username = document.createElement("p");
+    username.textContent = "@" + (profile.username || "unknown");
+
+    const gang = document.createElement("p");
+    gang.textContent = "Gang: " + (profile.gang || "Unaffiliated");
+
+    const bio = document.createElement("p");
+    bio.textContent = profile.bio || "No bio added yet.";
+
+    box.append(title, username, gang, bio);
+
+    document.getElementById("mm-edit-nickname").value =
+      profile.mafia_nickname || "";
+
+    document.getElementById("mm-edit-avatar").value =
+      profile.avatar || "👑";
+
+    document.getElementById("mm-edit-gang").value =
+      profile.gang || "";
+
+    document.getElementById("mm-edit-bio").value =
+      profile.bio || "";
+  }
+
+  async function loadMyProfile() {
+    if (!currentUser) return;
+
+    const { data, error } = await client
+      .from("profiles")
+      .select("id, username, mafia_nickname, avatar, bio, gang, created_at")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      throw new Error(
+        "Your profile record was not found. Please contact the game admin."
+      );
+    }
+
+    displayProfile(data);
+  }
+
+  async function loadMembers() {
+    const container = document.getElementById("mm-members");
+    container.replaceChildren();
+
+    const loading = document.createElement("p");
+    loading.textContent = "Loading members...";
+    container.append(loading);
+
+    const { data, error } = await client
+      .from("profiles")
+      .select("username, mafia_nickname, avatar, bio, gang, created_at")
+      .order("created_at", { ascending: true })
+      .limit(200);
+
+    container.replaceChildren();
+
+    if (error) {
+      const errorBox = document.createElement("p");
+      errorBox.textContent = "Couldn't load members: " + error.message;
+      container.append(errorBox);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      const empty = document.createElement("p");
+      empty.textContent = "No registered members yet.";
+      container.append(empty);
+      return;
+    }
+
+    data.forEach(profile => {
+      const card = document.createElement("div");
+      card.className = "mm-card";
+
+      const name = document.createElement("strong");
+      name.textContent = (profile.avatar || "👑") + " " +
+        (profile.mafia_nickname || "Mafia Member");
+
+      const username = document.createElement("p");
+      username.textContent = "@" + (profile.username || "unknown");
+
+      const gang = document.createElement("p");
+      gang.className = "mm-muted";
+      gang.textContent = "Gang: " + (profile.gang || "Unaffiliated");
+
+      const bio = document.createElement("p");
+      bio.textContent = profile.bio || "No bio added yet.";
+
+      card.append(name, username, gang, bio);
+      container.append(card);
+    });
+  }
+
+  async function refreshSession() {
+    const { data, error } = await client.auth.getSession();
+
+    if (error) throw error;
+
+    if (data.session) {
+      showLoggedIn(data.session.user);
+      await loadMyProfile();
+      await loadMembers();
+    } else {
+      showLoggedOut();
+    }
+  }
+
+  async function runAction(action) {
+    if (busy) return;
+
+    setBusy(true);
+    say("Please wait...");
+
+    try {
+      await action();
+    } catch (error) {
+      say(error.message || "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function init() {
+    if (!window.supabase) {
+      say("The account system couldn't load. Please refresh the page.");
+      return;
+    }
+
+    client = window.supabase.createClient(
+      PROJECT_URL,
+      PUBLISHABLE_KEY
+    );
+
+    client.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        showLoggedOut();
+      }
+    });
+
+    await refreshSession();
+
+    say(currentUser
+      ? "Welcome back to the city."
+      : "Register a new account or log in.");
+  }
+
+  document.getElementById("mm-register-form")
+    .addEventListener("submit", event => {
+      event.preventDefault();
+
+      runAction(async () => {
+        const username = clean(
+          document.getElementById("mm-reg-username").value
+        );
+
+        const nickname = clean(
+          document.getElementById("mm-reg-nickname").value
+        );
+
+        const email = clean(
+          document.getElementById("mm-reg-email").value
+        );
+
+        const password =
+          document.getElementById("mm-reg-password").value;
+
+        if (!/^[A-Za-z0-9_]{3,24}$/.test(username)) {
+          throw new Error(
+            "Username must be 3–24 letters, numbers or underscores."
+          );
+        }
+
+        if (!validNickname(nickname)) {
+          throw new Error(
+            "Your mafia nickname must be 3–30 characters."
+          );
+        }
+
+        const { data, error } = await client.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.href.split("#")[0],
+            data: {
+              username,
+              mafia_nickname: nickname
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        if (data.session) {
+          showLoggedIn(data.user);
+          await loadMyProfile();
+          await loadMembers();
+          say("Account created! Welcome to Mayhem Mafia.");
+        } else {
+          say(
+            "Registration submitted! Check your email and confirm your " +
+            "address before logging in. If you don't receive an email, " +
+            "check your spam folder."
+          );
+        }
+      });
+    });
+
+  document.getElementById("mm-login-form")
+    .addEventListener("submit", event => {
+      event.preventDefault();
+
+      runAction(async () => {
+        const email = clean(
+          document.getElementById("mm-login-email").value
+        );
+
+        const password =
+          document.getElementById("mm-login-password").value;
+
+        const { data, error } = await client.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        showLoggedIn(data.user);
+        await loadMyProfile();
+        await loadMembers();
+        say("You're back in the city!");
+      });
+    });
+
+  document.getElementById("mm-profile-form")
+    .addEventListener("submit", event => {
+      event.preventDefault();
+
+      runAction(async () => {
+        if (!currentUser) throw new Error("Please log in first.");
+
+        const nickname = clean(
+          document.getElementById("mm-edit-nickname").value
+        );
+
+        if (!validNickname(nickname)) {
+          throw new Error(
+            "Your mafia nickname must be 3–30 characters."
+          );
+        }
+
+        const updates = {
+          mafia_nickname: nickname,
+          avatar: clean(
+            document.getElementById("mm-edit-avatar").value
+          ) || "👑",
+          gang: clean(
+            document.getElementById("mm-edit-gang").value
+          ),
+          bio: clean(
+            document.getElementById("mm-edit-bio").value
+          )
+        };
+
+        const { error } = await client
+          .from("profiles")
+          .update(updates)
+          .eq("id", currentUser.id);
+
+        if (error) throw error;
+
+        await loadMyProfile();
+        await loadMembers();
+        say("Your profile has been saved!");
+      });
+    });
+
+  document.getElementById("mm-refresh-members")
+    .addEventListener("click", () => {
+      runAction(loadMembers);
+    });
+
+  document.getElementById("mm-logout")
+    .addEventListener("click", () => {
+      runAction(async () => {
+        const { error } = await client.auth.signOut();
+        if (error) throw error;
+
+        showLoggedOut();
+        say("You've logged out safely.");
+      });
+    });
+
+  init().catch(error => say(error.message));
+})();
+</script>
+<!-- END MAYHEM MAFIA ACCOUNT SYSTEM --></body></html>
